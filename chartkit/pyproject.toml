@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chartkit"
+version = "0.1.0"
+description = "好用的学术/商务图表自动生成工具，支持组合图、双轴、中文与配置文件出图"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "chartkit" }]
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+    "flask>=3.0",
+]
+
+[project.optional-dependencies]
+pandas = ["pandas>=2.0"]
+desktop = ["pywebview>=5.0"]
+build = ["pyinstaller>=6.0", "pywebview>=5.0"]
+
+[project.scripts]
+chartkit = "chartkit.cli:main"
+zuotubiao = "chartkit.desktop:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+chartkit = ["webapp/**/*"]

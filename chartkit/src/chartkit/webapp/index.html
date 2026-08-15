@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>做图表</title>
+  <link rel="stylesheet" href="/static/style.css?v=10" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>做图表</h1>
+      <p>选例子、改数字、下载图片</p>
+    </div>
+    <div class="top-actions">
+      <label class="preset-wrap">
+        ① 先选一个例子
+        <select id="preset"></select>
+      </label>
+      <button id="btn-render" class="primary">② 看效果</button>
+      <label class="preset-wrap">
+        背景
+        <select id="export-bg">
+          <option value="white">白底</option>
+          <option value="transparent">透明底（可叠在 PPT 上）</option>
+        </select>
+      </label>
+      <label class="preset-wrap">
+        图片格式
+        <select id="export-fmt">
+          <option value="png">PNG 图片</option>
+          <option value="jpg">JPG 图片</option>
+        </select>
+      </label>
+      <button id="btn-download" class="ghost" disabled>③ 下载图片</button>
+    </div>
+  </header>
+
+  <ol class="steps">
+    <li>左边选一个现成例子</li>
+    <li>改表格里的名字和数字</li>
+    <li>右边看图，选好背景和格式后再下载</li>
+  </ol>
+
+  <main class="layout">
+    <section class="panel">
+      <div class="block">
+        <h2>图的样子</h2>
+        <div id="types" class="chips"></div>
+      </div>
+
+      <div class="block">
+        <h2>颜色风格</h2>
+        <div id="themes" class="chips"></div>
+      </div>
+
+      <div class="block fields">
+        <label>图的标题 <input id="title" placeholder="写在图最上面，可以不填" /></label>
+        <label>底边说明 <input id="xlabel" placeholder="比如：季度，可以不填" /></label>
+        <label>左边说明 <input id="ylabel" placeholder="比如：销量，可以不填" /></label>
+        <label id="y2-wrap" class="hidden">右边说明 <input id="y2label" placeholder="可以不填" /></label>
+        <label id="bar-mode-wrap">柱子怎么排
+          <select id="bar-mode">
+            <option value="grouped">并排比较</option>
+            <option value="stacked">叠在一起</option>
+            <option value="percent">按百分比叠起来</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="block hidden" id="gauge-block">
+        <h2>填一个分数</h2>
+        <div class="fields">
+          <label>现在的分数 <input id="gauge-value" type="number" step="any" /></label>
+          <label>最低多少 <input id="gauge-min" type="number" step="any" /></label>
+          <label>最高多少 <input id="gauge-max" type="number" step="any" /></label>
+        </div>
+      </div>
+
+      <div class="block" id="cat-block">
+        <div class="block-head">
+          <h2>底边有几项（点格子就能改名字）</h2>
+          <button type="button" id="add-cat" class="mini">多加一项</button>
+        </div>
+        <div id="categories" class="cat-row"></div>
+      </div>
+
+      <div class="block" id="series-block">
+        <div class="block-head">
+          <h2 id="series-title">填数字</h2>
+          <button type="button" id="add-series" class="mini">多加一组</button>
+        </div>
+        <div class="table-wrap" id="grid-wrap">
+          <table id="series-table"></table>
+        </div>
+        <div id="list-wrap" class="hidden"></div>
+      </div>
+
+      <div class="block hidden" id="lines-block">
+        <div class="block-head">
+          <h2>折线上的数字</h2>
+          <button type="button" id="add-line" class="mini">多加一条线</button>
+        </div>
+        <div class="table-wrap">
+          <table id="lines-table"></table>
+        </div>
+      </div>
+
+      <p class="hint">改完名字或数字，右边的图会自己更新。下载前先选背景和格式。透明底只能用 PNG，方便贴到 PPT 里。</p>
+    </section>
+
+    <section class="preview">
+      <div id="status" class="status">正在准备…</div>
+      <div class="canvas">
+        <img id="chart" alt="图表预览" hidden />
+        <div id="empty" class="empty">选一个例子后，图会出现在这里</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 给程序用的默认值，页面上不显示 -->
+  <input id="filename" type="hidden" value="我的图表" />
+  <input id="fmt" type="hidden" value="png" />
+  <input id="fig-w" type="hidden" value="10.5" />
+  <input id="fig-h" type="hidden" value="6.4" />
+  <input id="dpi" type="hidden" value="200" />
+  <input id="rotate" type="hidden" value="0" />
+  <input id="ymin" type="hidden" />
+  <input id="ymax" type="hidden" />
+  <input id="y2min" type="hidden" value="0" />
+  <input id="y2max" type="hidden" value="1" />
+  <input id="bins" type="hidden" value="8" />
+  <input id="bg" type="hidden" />
+  <input id="show-bar-labels" type="checkbox" checked hidden />
+  <input id="show-line-labels" type="checkbox" checked hidden />
+  <input id="show-counts" type="checkbox" checked hidden />
+  <input id="show-legend" type="checkbox" checked hidden />
+  <input id="show-grid" type="checkbox" checked hidden />
+  <input id="auto-render" type="checkbox" checked hidden />
+
+  <script src="/static/app.js?v=10"></script>
+</body>
+</html>

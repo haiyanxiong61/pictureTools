@@ -1,0 +1,32 @@
+你只有这台 Mac，对方是没装环境的 Windows
+
+仓库已经连上：
+git@github.com:haiyanxiong61/pictureTools.git
+
+对方仍然不用装任何东西。
+推送代码后，用 GitHub 免费在云端打出 Windows 软件，再把下载好的包发给他。
+
+
+1. 打开终端，执行：
+
+cd /Users/xionghaiyan/Desktop/pythonTools
+git add .
+git commit -m "pictureTools"
+git push pictureTools master
+git push pictureTools master:main
+
+2. 打开 https://github.com/haiyanxiong61/pictureTools
+   点上面的 Actions
+   会看到正在跑 build-windows，等它变成绿色对勾（大约 5 到 10 分钟）
+
+3. 点进这次运行，拉到最下面
+   下载 pictureTools-windows
+   解压后，把整个文件夹发给对方
+
+4. 对方解压，双击 pictureTools.exe
+   不用安装 Python，不用安装任何开发环境
+
+
+注意
+- 不要把 .venv 文件夹发给对方
+- 不要只发一个 exe，整个下载下来的文件夹都要给

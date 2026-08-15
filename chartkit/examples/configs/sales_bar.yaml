@@ -1,0 +1,10 @@
+type: bar
+theme: colorful
+title: 季度销量对比
+ylabel: 销量
+bar_mode: grouped
+categories: [一季度, 二季度, 三季度, 四季度]
+series:
+  产品A: [32, 40, 38, 51]
+  产品B: [22, 28, 35, 30]
+  产品C: [14, 18, 16, 24]

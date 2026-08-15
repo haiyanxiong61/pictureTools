@@ -1,0 +1,40 @@
+目标
+
+对方 Windows 电脑：不安装 Python，不安装任何开发环境。
+对方只做两件事：解压，双击 pictureTools.exe。
+
+
+你要先做出这个包
+
+你这台是 Mac，不能直接生成 Windows 的 exe。
+必须先用下面任一方式打出 pictureTools.zip，再把 zip 发给对方。
+
+
+方式 A：借一台 Windows（推荐）
+
+1. 把整个 chartkit 文件夹拷到那台 Windows
+2. 那台电脑临时装一次 Python（只有打包的人要装，对方不用装）
+   https://www.python.org/downloads/
+   勾选 Add python.exe to PATH
+3. 双击 packaging\windows\build.bat
+4. 把生成的 dist\pictureTools.zip 发给对方
+
+
+方式 B：用 GitHub 云端打包（你没有 Windows 时）
+
+1. 把项目传到 GitHub
+2. 打开 Actions → build-windows → Run workflow
+3. 跑完后下载 pictureTools-windows
+4. 发给对方
+
+
+对方怎么用（零安装）
+
+1. 解压 zip
+2. 双击 pictureTools.exe
+3. 开始做图
+
+对方不需要：
+- Python
+- 命令行
+- 任何开发环境

@@ -1,0 +1,7 @@
+完整步骤见项目根目录：打包成Windows软件.txt
+
+简要：
+1. 在 Windows 上安装 Python，勾选 Add python.exe to PATH
+2. 双击 build.bat
+3. 把 dist\pictureTools.zip 发给对方
+4. 对方解压后双击 pictureTools.exe

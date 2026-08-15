@@ -1,7 +1,0 @@
-matplotlib>=3.8
-numpy>=1.26
-pyyaml>=6.0
-flask>=3.0
-
-[pandas]
-pandas>=2.0

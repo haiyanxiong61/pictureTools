@@ -1,0 +1,18 @@
+type: combo
+theme: academic
+figsize: [9.6, 6.2]
+dpi: 220
+bar_mode: percent
+show_counts: true
+y2_lim: [0, 1]
+categories:
+  - 人物
+  - 叙述角度
+  - 情节
+bars:
+  neg: [187, 3, 84]
+  neu: [12, 0, 9]
+  pos: [409, 184, 301]
+lines:
+  pos_average: [0.63, 0.91, 0.79]
+  neg_average: [0.37, 0.09, 0.21]
