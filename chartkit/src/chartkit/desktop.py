@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.request
 import webbrowser
+from pathlib import Path
 
 
 def _free_port() -> int:
@@ -47,6 +48,40 @@ def _keep_browser_window(url: str) -> None:
     root.mainloop()
 
 
+class DesktopApi:
+    def save_chart(self, payload: dict) -> dict:
+        from .web import initial_save_dir, remember_dir, render_image, reveal_file, safe_filename
+
+        data = dict(payload or {})
+        title = str(data.pop("filename", "") or data.get("title") or "我的图表")
+        image, fmt, label = render_image(data)
+        filename = safe_filename(f"{title}_{label}", fmt)
+
+        import webview
+
+        window = webview.windows[0] if webview.windows else None
+        dest = None
+        if window:
+            dest = window.create_file_dialog(
+                webview.SAVE_DIALOG,
+                directory=str(initial_save_dir()),
+                save_filename=filename,
+                file_types=(f"{fmt.upper()} 图片 (*.{fmt})", "所有文件 (*.*)"),
+            )
+        if isinstance(dest, (list, tuple)):
+            dest = dest[0] if dest else None
+        if not dest:
+            return {"cancelled": True}
+        path = Path(dest)
+        if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".svg", ".pdf"}:
+            path = path.with_suffix(f".{fmt}")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(image)
+        remember_dir(path)
+        reveal_file(path)
+        return {"path": str(path), "folder": str(path.parent), "name": path.name}
+
+
 def main() -> None:
     from .web import create_app
 
@@ -63,7 +98,14 @@ def main() -> None:
     try:
         import webview
 
-        webview.create_window("做图表", url, width=1320, height=860, min_size=(960, 640))
+        webview.create_window(
+            "做图表",
+            url,
+            width=1320,
+            height=860,
+            min_size=(960, 640),
+            js_api=DesktopApi(),
+        )
         webview.start()
         return
     except Exception:

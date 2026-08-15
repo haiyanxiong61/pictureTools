@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>做图表</title>
-  <link rel="stylesheet" href="/static/style.css?v=11" />
+  <link rel="stylesheet" href="/static/style.css?v=12" />
 </head>
 <body>
   <header class="top">
     <div>
       <h1>做图表</h1>
-      <p>选例子、改数字、保存到桌面</p>
+      <p>选例子、改数字、保存图片</p>
     </div>
     <div class="top-actions">
       <label class="preset-wrap">
@@ -32,14 +32,14 @@
           <option value="jpg">JPG 图片</option>
         </select>
       </label>
-      <button id="btn-download" class="ghost" disabled>③ 保存到桌面</button>
+      <button id="btn-download" class="ghost" disabled>③ 保存图片</button>
     </div>
   </header>
 
   <ol class="steps">
     <li>左边选一个现成例子</li>
     <li>改表格里的名字和数字</li>
-    <li>右边看图，选好背景和格式后点「保存到桌面」</li>
+    <li>右边看图，选好背景和格式后点「保存图片」，自己选文件夹</li>
   </ol>
 
   <main class="layout">
@@ -106,7 +106,7 @@
         </div>
       </div>
 
-      <p class="hint">改完名字或数字，右边的图会自己更新。点「保存到桌面」后，图片会出现在桌面上，并自动打开那个文件夹。透明底只能用 PNG，方便贴到 PPT 里。</p>
+      <p class="hint">改完名字或数字，右边的图会自己更新。点「保存图片」后，自己选要放的文件夹。透明底只能用 PNG，方便贴到 PPT 里。</p>
     </section>
 
     <section class="preview">
@@ -138,6 +138,6 @@
   <input id="show-grid" type="checkbox" checked hidden />
   <input id="auto-render" type="checkbox" checked hidden />
 
-  <script src="/static/app.js?v=11"></script>
+  <script src="/static/app.js?v=12"></script>
 </body>
 </html>

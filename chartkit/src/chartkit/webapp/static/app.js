@@ -509,6 +509,36 @@ async function fetchImage(bg, fmt) {
   return { blob, ext };
 }
 
+function savePayload(name, bg, fmt) {
+  return {
+    ...collectSpec(),
+    format: fmt,
+    background_mode: bg,
+    filename: name,
+  };
+}
+
+function showSaveResult(status, data) {
+  if (data?.cancelled) {
+    status.textContent = "已取消保存";
+    return;
+  }
+  status.textContent = `已保存：${data.name}`;
+}
+
+async function saveWithPicker(blob, filename, ext) {
+  if (!window.showSaveFilePicker) return false;
+  const mime = ext === "jpg" ? "image/jpeg" : `image/${ext}`;
+  const handle = await window.showSaveFilePicker({
+    suggestedName: filename,
+    types: [{ description: "图片", accept: { [mime]: [`.${ext}`] } }],
+  });
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+  return true;
+}
+
 async function download() {
   const status = $("status");
   const btn = $("btn-download");
@@ -517,26 +547,32 @@ async function download() {
   const { bg, fmt } = exportChoices();
   const bgName = bg === "transparent" ? "透明底" : "白底";
   const name = (state.title || state.filename || "我的图表").replace(/[\\/:*?"<>|]/g, "");
-  status.textContent = `正在保存到桌面…`;
+  const payload = savePayload(name, bg, fmt);
+  status.textContent = "请选择要保存的位置…";
   try {
+    const api = window.pywebview?.api;
+    if (api?.save_chart) {
+      showSaveResult(status, await api.save_chart(payload));
+      return;
+    }
     const res = await fetch("/api/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...collectSpec(),
-        format: fmt,
-        background_mode: bg,
-        filename: name,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "保存失败，请再点一次");
-    status.textContent = `已保存到桌面：${data.name}。电脑会弹出那个文件夹`;
+    showSaveResult(status, data);
   } catch (err) {
     try {
       const file = await fetchImage(bg, fmt);
-      saveBlob(file.blob, `${name}_${bgName}.${file.ext}`);
-      status.textContent = `已开始下载：${name}_${bgName}.${file.ext}。请到「下载」或「桌面」里找`;
+      const filename = `${name}_${bgName}.${file.ext}`;
+      if (await saveWithPicker(file.blob, filename, file.ext)) {
+        status.textContent = `已保存：${filename}`;
+      } else {
+        saveBlob(file.blob, filename);
+        status.textContent = `已开始下载：${filename}。请在弹出的窗口里选保存位置`;
+      }
     } catch (_) {
       status.classList.add("error");
       status.textContent = err.message;
@@ -636,5 +672,9 @@ async function boot() {
     console.error(err);
   }
 }
+
+window.addEventListener("pywebviewready", () => {
+  window.pywebviewReady = true;
+});
 
 boot();

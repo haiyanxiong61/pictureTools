@@ -78,6 +78,69 @@ def unique_path(folder: Path, filename: str) -> Path:
     return folder / f"{stem}_{os.getpid()}{suffix}"
 
 
+def _last_dir_file() -> Path:
+    return Path.home() / ".pictureTools_lastdir"
+
+
+def initial_save_dir() -> Path:
+    try:
+        folder = Path(_last_dir_file().read_text(encoding="utf-8").strip())
+        if folder.is_dir():
+            return folder
+    except Exception:
+        pass
+    return default_save_dir()
+
+
+def remember_dir(path: Path) -> None:
+    try:
+        folder = path.parent if path.suffix else path
+        _last_dir_file().write_text(str(folder), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def choose_save_path(filename: str) -> Path | None:
+    import tkinter as tk
+    from tkinter import filedialog
+
+    suffix = Path(filename).suffix.lower() or ".png"
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    selected = filedialog.asksaveasfilename(
+        title="保存图片",
+        initialdir=str(initial_save_dir()),
+        initialfile=filename,
+        defaultextension=suffix,
+        filetypes=[
+            ("PNG 图片", "*.png"),
+            ("JPG 图片", "*.jpg"),
+            ("所有文件", "*.*"),
+        ],
+    )
+    root.destroy()
+    if not selected:
+        return None
+    return Path(selected)
+
+
+def write_chart(payload: dict) -> dict:
+    title = str(payload.pop("filename", "") or payload.get("title") or "我的图表")
+    image, fmt, label = render_image(payload)
+    filename = safe_filename(f"{title}_{label}", fmt)
+    dest = choose_save_path(filename)
+    if dest is None:
+        return {"cancelled": True}
+    if dest.suffix.lower() not in {".png", ".jpg", ".jpeg", ".svg", ".pdf"}:
+        dest = dest.with_suffix(f".{fmt}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(image)
+    remember_dir(dest)
+    reveal_file(dest)
+    return {"path": str(dest), "folder": str(dest.parent), "name": dest.name}
+
+
 def reveal_file(path: Path) -> None:
     try:
         if sys.platform == "win32":
@@ -146,16 +209,11 @@ def create_app() -> Flask:
     @app.post("/api/save")
     def save_chart():
         payload = request.get_json(silent=True) or {}
-        title = str(payload.pop("filename", "") or payload.get("title") or "我的图表")
         try:
-            image, fmt, label = render_image(payload)
-            folder = default_save_dir()
-            path = unique_path(folder, safe_filename(f"{title}_{label}", fmt))
-            path.write_bytes(image)
+            result = write_chart(payload)
         except Exception as exc:
             return jsonify({"error": str(exc)}), 400
-        reveal_file(path)
-        return jsonify({"path": str(path), "folder": str(path.parent), "name": path.name})
+        return jsonify(result)
 
     @app.post("/api/import")
     def import_data():
