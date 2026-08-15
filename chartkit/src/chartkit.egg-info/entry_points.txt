@@ -1,0 +1,2 @@
+[console_scripts]
+chartkit = chartkit.cli:main
