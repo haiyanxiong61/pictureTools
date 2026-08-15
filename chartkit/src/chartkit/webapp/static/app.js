@@ -516,15 +516,31 @@ async function download() {
   status.classList.remove("error");
   const { bg, fmt } = exportChoices();
   const bgName = bg === "transparent" ? "透明底" : "白底";
-  status.textContent = `正在保存${bgName}的 ${fmt.toUpperCase()} 图片…`;
+  const name = (state.title || state.filename || "我的图表").replace(/[\\/:*?"<>|]/g, "");
+  status.textContent = `正在保存到桌面…`;
   try {
-    const name = (state.title || state.filename || "我的图表").replace(/[\\/:*?"<>|]/g, "");
-    const file = await fetchImage(bg, fmt);
-    saveBlob(file.blob, `${name}_${bgName}.${file.ext}`);
-    status.textContent = `已保存：${name}_${bgName}.${file.ext}。请到「下载」文件夹里找`;
+    const res = await fetch("/api/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...collectSpec(),
+        format: fmt,
+        background_mode: bg,
+        filename: name,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "保存失败，请再点一次");
+    status.textContent = `已保存到桌面：${data.name}。电脑会弹出那个文件夹`;
   } catch (err) {
-    status.classList.add("error");
-    status.textContent = err.message;
+    try {
+      const file = await fetchImage(bg, fmt);
+      saveBlob(file.blob, `${name}_${bgName}.${file.ext}`);
+      status.textContent = `已开始下载：${name}_${bgName}.${file.ext}。请到「下载」或「桌面」里找`;
+    } catch (_) {
+      status.classList.add("error");
+      status.textContent = err.message;
+    }
   } finally {
     btn.disabled = false;
   }

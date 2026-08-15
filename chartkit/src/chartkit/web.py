@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import re
+import subprocess
+import sys
 import threading
 import webbrowser
 from pathlib import Path
@@ -27,6 +31,78 @@ MIME = {
     "svg": "image/svg+xml",
     "pdf": "application/pdf",
 }
+
+
+def default_save_dir() -> Path:
+    home = Path.home()
+    candidates = [
+        home / "Desktop",
+        home / "OneDrive" / "Desktop",
+        home / "OneDrive" / "桌面",
+        Path(os.environ.get("USERPROFILE", str(home))) / "Desktop",
+    ]
+    for item in candidates:
+        if item.is_dir():
+            return item
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            buf = ctypes.create_unicode_buffer(260)
+            ctypes.windll.shell32.SHGetFolderPathW(None, 0, None, 0, buf)
+            path = Path(buf.value)
+            if path.is_dir():
+                return path
+        except Exception:
+            pass
+    fallback = home / "Pictures" / "pictureTools"
+    fallback.mkdir(parents=True, exist_ok=True)
+    return fallback
+
+
+def safe_filename(name: str, ext: str) -> str:
+    stem = re.sub(r'[\\/:*?"<>|\r\n]+', "", name).strip() or "我的图表"
+    ext = ext.lstrip(".").lower() or "png"
+    return f"{stem}.{ext}"
+
+
+def unique_path(folder: Path, filename: str) -> Path:
+    dest = folder / filename
+    if not dest.exists():
+        return dest
+    stem, suffix = dest.stem, dest.suffix
+    for index in range(2, 200):
+        candidate = folder / f"{stem} ({index}){suffix}"
+        if not candidate.exists():
+            return candidate
+    return folder / f"{stem}_{os.getpid()}{suffix}"
+
+
+def reveal_file(path: Path) -> None:
+    try:
+        if sys.platform == "win32":
+            subprocess.Popen(["explorer", "/select,", str(path)])
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", "-R", str(path)])
+        else:
+            subprocess.Popen(["xdg-open", str(path.parent)])
+    except Exception:
+        pass
+
+
+def render_image(payload: dict) -> tuple[bytes, str, str]:
+    fmt = str(payload.pop("format", None) or "png").lower()
+    bg = str(payload.pop("background_mode", None) or "").lower()
+    if fmt not in MIME:
+        raise ValueError(f"不支持的格式 {fmt}，可选: {', '.join(MIME)}")
+    chart = Chart.from_mapping(payload)
+    if bg == "transparent":
+        if fmt in {"jpg", "jpeg"}:
+            fmt = "png"
+        return chart.to_bytes(fmt, transparent=True), fmt, "透明底"
+    if bg == "white":
+        return chart.to_bytes(fmt, background="white"), fmt, "白底"
+    return chart.to_bytes(fmt), fmt, "图"
 
 
 def create_app() -> Flask:
@@ -57,26 +133,29 @@ def create_app() -> Flask:
     @app.post("/api/render")
     def render_chart():
         payload = request.get_json(silent=True) or {}
-        fmt = str(payload.pop("format", None) or request.args.get("fmt") or "png").lower()
-        bg = str(payload.pop("background_mode", None) or request.args.get("bg") or "").lower()
-        if fmt not in MIME:
-            return jsonify({"error": f"不支持的格式 {fmt}，可选: {', '.join(MIME)}"}), 400
+        if request.args.get("fmt") and "format" not in payload:
+            payload["format"] = request.args.get("fmt")
+        if request.args.get("bg") and "background_mode" not in payload:
+            payload["background_mode"] = request.args.get("bg")
         try:
-            chart = Chart.from_mapping(payload)
-            if bg == "transparent":
-                if fmt in {"jpg", "jpeg"}:
-                    fmt = "png"
-                image = chart.to_bytes(fmt, transparent=True)
-                name = f"chart_transparent.{fmt}"
-            elif bg == "white":
-                image = chart.to_bytes(fmt, background="white")
-                name = f"chart_white.{fmt}"
-            else:
-                image = chart.to_bytes(fmt)
-                name = f"chart.{fmt}"
+            image, fmt, label = render_image(payload)
         except Exception as exc:
             return jsonify({"error": str(exc)}), 400
-        return send_file(io.BytesIO(image), mimetype=MIME[fmt], download_name=name)
+        return send_file(io.BytesIO(image), mimetype=MIME[fmt], download_name=f"chart_{label}.{fmt}")
+
+    @app.post("/api/save")
+    def save_chart():
+        payload = request.get_json(silent=True) or {}
+        title = str(payload.pop("filename", "") or payload.get("title") or "我的图表")
+        try:
+            image, fmt, label = render_image(payload)
+            folder = default_save_dir()
+            path = unique_path(folder, safe_filename(f"{title}_{label}", fmt))
+            path.write_bytes(image)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+        reveal_file(path)
+        return jsonify({"path": str(path), "folder": str(path.parent), "name": path.name})
 
     @app.post("/api/import")
     def import_data():
