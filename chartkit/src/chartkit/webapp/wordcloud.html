@@ -4,27 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>做词云</title>
-  <link rel="stylesheet" href="/static/style.css?v=14" />
+  <link rel="stylesheet" href="/static/style.css?v=15" />
 </head>
 <body>
   <header class="top">
     <div>
       <h1>做词云</h1>
-      <p>粘贴文字或填词，生成彩色词云图</p>
+      <p>填词或粘贴文章，改次数，导出图片，下载图库</p>
       <nav class="switch">
         <a href="/">做图表</a>
         <a class="active" href="/wordcloud">做词云</a>
       </nav>
     </div>
     <div class="top-actions">
-      <label class="preset-wrap">
-        ① 怎么填
-        <select id="mode">
-          <option value="words">一行一个词（可写次数）</option>
-          <option value="article">粘贴一整段文章，自动拆词</option>
-        </select>
-      </label>
-      <button id="btn-render" class="primary">② 看效果</button>
+      <button id="btn-render" class="primary">① 看效果</button>
       <label class="preset-wrap">
         背景
         <select id="export-bg">
@@ -39,18 +32,39 @@
           <option value="jpg">JPG 图片</option>
         </select>
       </label>
-      <button id="btn-download" class="primary" disabled>③ 导出这张图</button>
+      <button id="btn-download" class="ghost" disabled>② 导出这张图</button>
+      <button id="btn-keep" class="ghost" disabled>放入图库</button>
     </div>
   </header>
 
   <ol class="steps">
-    <li>左边用现成例子，或换成你自己的词</li>
-    <li>选外形和颜色</li>
-    <li>右边看图，点「导出这张图」保存；下面图库里也能单张或打包下载</li>
+    <li>自己填词，或粘贴文章后点「拆成词表」</li>
+    <li>在表格里改词、改次数，不要的词点删除</li>
+    <li>选外形和颜色，点「看效果」</li>
+    <li>导出到自己选的文件夹，或放入图库后打包下载</li>
   </ol>
 
   <main class="layout">
     <section class="panel">
+      <div class="block">
+        <h2>词从哪里来</h2>
+        <div class="chips" id="mode-chips">
+          <button type="button" class="chip active" data-mode="words">自己填词</button>
+          <button type="button" class="chip" data-mode="article">粘贴文章自动拆词</button>
+        </div>
+      </div>
+
+      <div class="block hidden" id="article-block">
+        <div class="block-head">
+          <h2>粘贴文章</h2>
+          <div>
+            <button type="button" id="btn-cut" class="mini">拆成词表</button>
+            <label class="mini file-btn">上传 txt/csv<input id="file" type="file" accept=".txt,.csv,.md,.tsv" hidden /></label>
+          </div>
+        </div>
+        <textarea id="article" rows="8" placeholder="把整段中文粘贴进来，再点「拆成词表」"></textarea>
+      </div>
+
       <div class="block">
         <h2>外形</h2>
         <div id="shapes" class="chips"></div>
@@ -59,22 +73,47 @@
         <h2>颜色</h2>
         <div id="palettes" class="chips"></div>
       </div>
+      <div class="block">
+        <h2>字怎么排</h2>
+        <div id="layouts" class="chips"></div>
+      </div>
       <div class="block fields">
         <label>最多显示多少个词
-          <input id="max-words" type="number" min="10" max="300" value="80" />
+          <input id="max-words" type="number" min="10" max="400" value="80" />
+        </label>
+        <label>图片大小
+          <select id="scale">
+            <option value="1">普通</option>
+            <option value="1.4" selected>更清晰</option>
+            <option value="1.8">很大张</option>
+          </select>
         </label>
         <label>不要这些词（用逗号隔开）
           <input id="stopwords" placeholder="比如：的，了，是" />
         </label>
+        <label>导出文件名
+          <input id="filename" value="我的词云" />
+        </label>
       </div>
+
       <div class="block">
         <div class="block-head">
-          <h2 id="text-title">填词（越大的数字，字越大）</h2>
-          <button type="button" id="btn-sample" class="mini">用示例</button>
+          <h2>词表（数字越大，字越大）</h2>
+          <div>
+            <button type="button" id="add-word" class="mini">加一个词</button>
+            <button type="button" id="btn-sample" class="mini">用示例</button>
+          </div>
         </div>
-        <textarea id="text" rows="16" placeholder="小米 36&#10;汽车 32&#10;造车 28"></textarea>
+        <div class="table-wrap">
+          <table id="word-table">
+            <thead>
+              <tr><th>词</th><th>次数</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
-      <p class="hint">一行一个词。想让某个词更大，在后面加数字，例如：小米 36。点「换一换」可以换排布。做好的图会进下面的图库，可以随时下载。</p>
+      <p class="hint">改完词表再点「看效果」。导出时会弹出窗口让你选文件夹。满意的图也可以点「放入图库」，最后打包下载。</p>
     </section>
 
     <section class="preview">
@@ -84,7 +123,7 @@
       </div>
       <div class="canvas">
         <img id="chart" alt="词云预览" hidden />
-        <div id="empty" class="empty">点「看效果」后，词云会出现在这里</div>
+        <div id="empty" class="empty">填好词表后，点「看效果」</div>
       </div>
     </section>
   </main>
@@ -97,10 +136,10 @@
         <button type="button" id="btn-open-gallery" class="mini">打开图库文件夹</button>
       </div>
     </div>
-    <p class="hint">每做成功一张，都会放进图库。可以单张导出，也可以一次打包成 zip 下载。</p>
+    <p class="hint">这里只收你导出或手动放入的图，预览不会自动塞进来。可以单张下载，也可以一次打包成 zip。</p>
     <div id="gallery" class="gallery"></div>
   </section>
 
-  <script src="/static/wordcloud.js?v=14"></script>
+  <script src="/static/wordcloud.js?v=15"></script>
 </body>
 </html>

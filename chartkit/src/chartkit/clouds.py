@@ -16,16 +16,20 @@ STOPWORDS = {
     "我们", "你们", "他们", "这是", "这个", "那个", "什么", "可以", "因为", "所以", "如果", "但是",
     "还是", "或者", "以及", "然后", "已经", "为了", "不是", "真的", "这样", "那样", "这么", "那么",
     "一些", "还有", "就是", "只是", "而且", "并且", "虽然", "不过", "因此", "其中", "通过", "进行",
-    "以及", "同时", "之后", "之前", "现在", "目前", "方面", "问题", "工作", "能够", "开始", "这些",
+    "同时", "之后", "之前", "现在", "目前", "方面", "问题", "工作", "能够", "开始", "这些",
     "那些", "一样", "比较", "非常", "可能", "需要", "应该", "觉得", "知道", "出来", "起来", "下来",
+    "没有", "还是", "不是", "一个", "我们", "他们", "你们", "自己", "什么", "怎么", "哪个", "哪些",
+    "这个", "那个", "这样", "那样", "因为", "所以", "如果", "虽然", "但是", "而且", "或者", "以及",
+    "进行", "通过", "关于", "对于", "作为", "根据", "由于", "另外", "此外", "首先", "其次", "最后",
     "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with", "is", "are", "was", "be",
 }
 
 PALETTES = {
-    "colorful": ["#1f4e79", "#2e75b6", "#5b9bd5", "#548235", "#70ad47", "#c6a000", "#7b4b94", "#5b2c6f", "#ed7d31"],
+    "colorful": ["#1f4e79", "#2e75b6", "#5b9bd5", "#548235", "#70ad47", "#c6a000", "#ffc000", "#7b4b94", "#5b2c6f", "#ed7d31"],
     "bluegreen": ["#1f4e79", "#2e75b6", "#5b9bd5", "#385723", "#548235", "#70ad47", "#a9d08e"],
     "academic": ["#222222", "#4d4d4d", "#6e6e6e", "#8a8a8a", "#3f6b46", "#5a7d5c"],
     "business": ["#1f4e79", "#2e75b6", "#5b9bd5", "#c00000", "#833c0c"],
+    "pastel": ["#8da0cb", "#fc8d62", "#66c2a5", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494"],
 }
 
 SAMPLE_WORDS = """小米 36
@@ -57,7 +61,6 @@ SU7 18
 巨大 6
 甚至 6
 一定 6
-问题 6
 用户 6
 体验 6
 质量 6
@@ -92,7 +95,7 @@ def _require_wordcloud():
 def parse_word_lines(text: str) -> dict[str, float]:
     freq: dict[str, float] = {}
     for raw in text.splitlines():
-        line = raw.strip()
+        line = raw.strip().lstrip("\ufeff")
         if not line:
             continue
         match = re.match(r"^(.*?)(?:[,，\s\t:：]+)(\d+(?:\.\d+)?)\s*$", line)
@@ -106,6 +109,38 @@ def parse_word_lines(text: str) -> dict[str, float]:
     return freq
 
 
+def rows_to_freq(rows: list[Any] | None) -> dict[str, float]:
+    freq: dict[str, float] = {}
+    for row in rows or []:
+        if isinstance(row, dict):
+            word = str(row.get("word") or row.get("name") or "").strip()
+            count = row.get("count", row.get("value", 1))
+        elif isinstance(row, (list, tuple)) and row:
+            word = str(row[0]).strip()
+            count = row[1] if len(row) > 1 else 1
+        else:
+            continue
+        if not word:
+            continue
+        try:
+            weight = float(count)
+        except (TypeError, ValueError):
+            weight = 1.0
+        if weight <= 0:
+            continue
+        freq[word] = freq.get(word, 0) + weight
+    return freq
+
+
+def freq_to_rows(freq: dict[str, float]) -> list[dict[str, Any]]:
+    items = sorted(freq.items(), key=lambda item: (-item[1], item[0]))
+    rows = []
+    for word, count in items:
+        value: int | float = int(count) if float(count).is_integer() else round(count, 2)
+        rows.append({"word": word, "count": value})
+    return rows
+
+
 def cut_article(text: str, extra_stop: set[str] | None = None) -> dict[str, float]:
     try:
         import jieba
@@ -113,7 +148,7 @@ def cut_article(text: str, extra_stop: set[str] | None = None) -> dict[str, floa
         raise RuntimeError("拆中文词还没装好。请先执行：pip install jieba") from exc
     stops = STOPWORDS | {item.strip() for item in (extra_stop or set()) if item.strip()}
     counts: Counter[str] = Counter()
-    for token in jieba.cut(text):
+    for token in jieba.lcut(text):
         word = token.strip()
         if not word or word in stops:
             continue
@@ -125,32 +160,58 @@ def cut_article(text: str, extra_stop: set[str] | None = None) -> dict[str, floa
     return dict(counts)
 
 
+def extra_stopwords(payload: dict[str, Any]) -> set[str]:
+    return {part.strip() for part in str(payload.get("stopwords") or "").replace("，", ",").split(",") if part.strip()}
+
+
 def frequencies_from_payload(payload: dict[str, Any]) -> dict[str, float]:
-    mode = str(payload.get("mode") or "words")
-    text = str(payload.get("text") or "").strip()
-    if not text:
-        raise ValueError("请先粘贴一段文字，或一行一个词")
-    extra = {part.strip() for part in str(payload.get("stopwords") or "").replace("，", ",").split(",") if part.strip()}
-    if mode == "article":
-        freq = cut_article(text, extra)
+    extra = extra_stopwords(payload)
+    if payload.get("rows"):
+        freq = rows_to_freq(payload.get("rows"))
+    elif isinstance(payload.get("words"), dict) and payload.get("words"):
+        freq = {str(key).strip(): float(val) for key, val in payload["words"].items() if str(key).strip()}
     else:
-        freq = parse_word_lines(text)
-        freq = {word: weight for word, weight in freq.items() if word not in extra}
+        text = str(payload.get("text") or "").strip()
+        if not text:
+            raise ValueError("请先填词，或粘贴一段文字后点「拆成词表」")
+        mode = str(payload.get("mode") or "words")
+        freq = cut_article(text, extra) if mode == "article" else parse_word_lines(text)
+    freq = {word: weight for word, weight in freq.items() if word not in extra}
     if not freq:
-        raise ValueError("没有找出可用的词。可以换一段更长的文字，或改成一行一个词")
+        raise ValueError("没有找出可用的词。可以换一段更长的文字，或在词表里加词")
     return freq
+
+
+def analyze(payload: dict[str, Any]) -> dict[str, Any]:
+    data = dict(payload)
+    if not data.get("rows") and not data.get("words"):
+        data["mode"] = data.get("mode") or "article"
+    freq = frequencies_from_payload(data)
+    rows = freq_to_rows(freq)
+    return {"rows": rows, "total": len(rows), "sum": round(sum(freq.values()), 2)}
 
 
 def make_mask(shape: str, size: int = 1400) -> np.ndarray | None:
     if shape in {"square", "rect", ""}:
         return None
     yy, xx = np.ogrid[:size, :size]
-    center = (size - 1) / 2
+    center = (size - 1) / 2.0
+    mask = np.full((size, size), 255, dtype=np.uint8)
+    if shape == "oval":
+        rx, ry = size * 0.46, size * 0.34
+        oval = ((xx - center) / rx) ** 2 + ((yy - center) / ry) ** 2
+        mask[oval <= 1] = 0
+        return mask
+    if shape == "heart":
+        x = (xx - center) / (size * 0.38)
+        y = (center - yy) / (size * 0.38) - 0.18
+        heart = (x * x + y * y - 1) ** 3 - (x * x) * (y ** 3)
+        mask[heart <= 0] = 0
+        return mask
     radius = size * 0.48
     dist = (xx - center) ** 2 + (yy - center) ** 2
-    mask = np.full((size, size), 255, dtype=np.uint8)
     if shape == "ring":
-        inner = radius * 0.34
+        inner = radius * 0.32
         mask[(dist <= radius ** 2) & (dist >= inner ** 2)] = 0
     else:
         mask[dist <= radius ** 2] = 0
@@ -174,13 +235,16 @@ def render_wordcloud(payload: dict[str, Any]) -> tuple[bytes, str, str]:
         fmt = "png"
     shape = str(payload.get("shape") or "ring")
     palette_name = str(payload.get("palette") or "colorful")
-    palette = PALETTES.get(palette_name, PALETTES["colorful"])
+    palette = list(PALETTES.get(palette_name, PALETTES["colorful"]))
     max_words = int(payload.get("max_words") or 80)
     seed = int(payload.get("seed") or 7)
+    scale = float(payload.get("scale") or 1.4)
+    size = int(1000 * max(0.8, min(scale, 2.2)))
+    prefer = float(payload.get("prefer_horizontal") or 0.65)
     freq = frequencies_from_payload(payload)
     font_path = find_chinese_font_path()
-    mask = make_mask(shape)
-    width, height = (1400, 1400) if mask is not None else (1600, 1000)
+    mask = make_mask(shape, size=size)
+    width, height = (size, size) if mask is not None else (int(size * 1.2), int(size * 0.78))
     rng = random.Random(seed)
     background = None if bg == "transparent" else "#ffffff"
     cloud = WordCloud(
@@ -190,16 +254,16 @@ def render_wordcloud(payload: dict[str, Any]) -> tuple[bytes, str, str]:
         background_color=background,
         mode="RGBA" if bg == "transparent" else "RGB",
         mask=mask,
-        max_words=max(8, min(max_words, 300)),
-        prefer_horizontal=0.62,
-        relative_scaling=0.45,
+        max_words=max(8, min(max_words, 400)),
+        prefer_horizontal=max(0.0, min(prefer, 1.0)),
+        relative_scaling=0.5,
         collocations=False,
         min_font_size=8,
-        max_font_size=220,
+        max_font_size=max(40, int(size * 0.16)),
         random_state=seed,
         color_func=color_func(palette, rng),
         contour_width=0,
-        margin=6,
+        margin=4,
     )
     image = cloud.generate_from_frequencies(freq).to_image()
     if fmt == "jpg":
@@ -220,14 +284,23 @@ def meta() -> dict[str, Any]:
         "palettes": [
             {"id": "colorful", "name": "彩色"},
             {"id": "bluegreen", "name": "蓝绿"},
+            {"id": "pastel", "name": "柔和"},
             {"id": "academic", "name": "学术灰绿"},
             {"id": "business", "name": "商务蓝"},
         ],
         "shapes": [
             {"id": "ring", "name": "环形"},
             {"id": "circle", "name": "圆形"},
+            {"id": "oval", "name": "椭圆"},
             {"id": "square", "name": "方形"},
+            {"id": "heart", "name": "心形"},
+        ],
+        "layouts": [
+            {"id": "0.95", "name": "几乎都横着"},
+            {"id": "0.65", "name": "有横有竖"},
+            {"id": "0.35", "name": "多一些竖着"},
         ],
         "sample_words": SAMPLE_WORDS.strip(),
         "sample_text": SAMPLE_TEXT.strip(),
+        "sample_rows": freq_to_rows(parse_word_lines(SAMPLE_WORDS)),
     }

@@ -184,7 +184,7 @@ def add_to_gallery(image: bytes, fmt: str, label: str, shape: str) -> dict:
 def gallery_zip_bytes() -> bytes:
     items = list_gallery()
     if not items:
-        raise ValueError("图库还是空的，请先点「看效果」做出词云")
+        raise ValueError("图库还是空的。先导出或点「放入图库」")
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for item in items:
@@ -255,6 +255,25 @@ def create_app() -> Flask:
 
         return jsonify(cloud_meta())
 
+    @app.post("/api/wordcloud/analyze")
+    def wordcloud_analyze():
+        from .clouds import analyze
+
+        payload = request.get_json(silent=True) or {}
+        if "file" in request.files:
+            upload = request.files["file"]
+            text = upload.read().decode("utf-8-sig", errors="ignore")
+            payload["text"] = text
+            name = (upload.filename or "").lower()
+            if name.endswith((".csv", ".tsv")):
+                payload["mode"] = "words"
+            elif "mode" not in payload:
+                payload["mode"] = "article"
+        try:
+            return jsonify(analyze(payload))
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+
     @app.post("/api/wordcloud/render")
     def wordcloud_render():
         from .clouds import render_wordcloud
@@ -262,7 +281,6 @@ def create_app() -> Flask:
         payload = request.get_json(silent=True) or {}
         try:
             image, fmt, label = render_wordcloud(payload)
-            add_to_gallery(image, fmt, label, str(payload.get("shape") or "ring"))
         except Exception as exc:
             return jsonify({"error": str(exc)}), 400
         return send_file(io.BytesIO(image), mimetype=MIME[fmt], download_name=f"wordcloud_{label}.{fmt}")
@@ -277,12 +295,39 @@ def create_app() -> Flask:
                 raw = base64.b64decode(str(payload["data"]).split(",")[-1])
                 title = str(payload.get("filename") or "我的词云")
                 fmt = str(payload.get("format") or "png").lower()
+                shape = str(payload.get("shape") or "ring")
+                label = "透明底" if payload.get("background_mode") == "transparent" else "白底"
+                if payload.get("keep", True):
+                    add_to_gallery(raw, fmt, label, shape)
                 result = write_bytes(raw, safe_filename(title, fmt), fmt)
             else:
                 result = write_wordcloud(payload)
         except Exception as exc:
             return jsonify({"error": str(exc)}), 400
         return jsonify(result)
+
+    @app.post("/api/wordcloud/keep")
+    def wordcloud_keep():
+        payload = request.get_json(silent=True) or {}
+        try:
+            import base64
+
+            raw = base64.b64decode(str(payload.get("data") or "").split(",")[-1])
+            fmt = str(payload.get("format") or "png").lower()
+            shape = str(payload.get("shape") or "ring")
+            label = "透明底" if payload.get("background_mode") == "transparent" else "白底"
+            item = add_to_gallery(raw, fmt, label, shape)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(item)
+
+    @app.delete("/api/wordcloud/gallery/<name>")
+    def wordcloud_gallery_delete(name: str):
+        try:
+            gallery_file(name).unlink()
+        except FileNotFoundError as exc:
+            return jsonify({"error": str(exc)}), 404
+        return jsonify({"ok": True})
 
     @app.get("/api/wordcloud/gallery")
     def wordcloud_gallery():

@@ -279,6 +279,15 @@ td.row-name input { min-width: 96px; font-weight: 600; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.gallery-btns { display: flex; gap: 6px; }
+.file-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+#article { min-height: 140px; }
+#word-table { width: 100%; }
+#word-table .count { width: 88px; }
 
 @media (max-width: 960px) {
   .layout { grid-template-columns: 1fr; }
