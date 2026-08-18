@@ -18,11 +18,21 @@ STOPWORDS = {
     "一些", "还有", "就是", "只是", "而且", "并且", "虽然", "不过", "因此", "其中", "通过", "进行",
     "同时", "之后", "之前", "现在", "目前", "方面", "问题", "工作", "能够", "开始", "这些",
     "那些", "一样", "比较", "非常", "可能", "需要", "应该", "觉得", "知道", "出来", "起来", "下来",
-    "没有", "还是", "不是", "一个", "我们", "他们", "你们", "自己", "什么", "怎么", "哪个", "哪些",
-    "这个", "那个", "这样", "那样", "因为", "所以", "如果", "虽然", "但是", "而且", "或者", "以及",
-    "进行", "通过", "关于", "对于", "作为", "根据", "由于", "另外", "此外", "首先", "其次", "最后",
+    "怎么", "哪个", "哪些", "关于", "对于", "作为", "根据", "由于", "另外", "此外", "首先", "其次",
+    "最后", "一直", "不断", "分别", "各种", "所有", "每个", "本次", "此次", "以上", "以下", "左右",
+    "之间", "等等", "其实", "当然", "比如", "例如", "包括", "相关", "出现", "发生", "成为", "使用",
+    "一场", "一位", "一项", "一种",
     "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with", "is", "are", "was", "be",
 }
+
+SKIP_POS = {
+    "x", "w", "p", "c", "u", "uj", "ul", "ug", "ud", "uv", "uz", "y", "e", "o", "r", "zg",
+}
+
+USER_WORDS = [
+    "小米", "雷军", "SU7", "小米汽车", "发布会", "造车", "新能源汽车", "智能驾驶",
+    "自动驾驶", "工程师", "第一次", "三年", "研发", "电池", "测试", "上市",
+]
 
 PALETTES = {
     "colorful": ["#1f4e79", "#2e75b6", "#5b9bd5", "#548235", "#70ad47", "#c6a000", "#ffc000", "#7b4b94", "#5b2c6f", "#ed7d31"],
@@ -88,7 +98,7 @@ def _require_wordcloud():
         from PIL import Image
         from wordcloud import WordCloud
     except ImportError as exc:
-        raise RuntimeError("词云还没装好。请先执行：pip install wordcloud jieba pillow") from exc
+        raise RuntimeError("词云还没装好。请先执行：pip install wordcloud jieba pillow") from extra_exc
     return WordCloud, Image
 
 
@@ -141,18 +151,43 @@ def freq_to_rows(freq: dict[str, float]) -> list[dict[str, Any]]:
     return rows
 
 
-def cut_article(text: str, extra_stop: set[str] | None = None) -> dict[str, float]:
+def keep_word_list(payload: dict[str, Any]) -> list[str]:
+    extra = str(payload.get("keep_words") or payload.get("user_words") or "")
+    parts = re.split(r"[,，、\s]+", extra)
+    words = [item.strip() for item in parts if item.strip()]
+    seen: list[str] = []
+    for word in USER_WORDS + words:
+        if word not in seen:
+            seen.append(word)
+    return seen
+
+
+def apply_user_dict(words: list[str]) -> None:
+    import jieba
+
+    for word in words:
+        jieba.add_word(word, freq=8000, tag="nz")
+
+
+def cut_article(text: str, extra_stop: set[str] | None = None, keep_words: list[str] | None = None) -> dict[str, float]:
     try:
-        import jieba
-    except ImportError as exc:
-        raise RuntimeError("拆中文词还没装好。请先执行：pip install jieba") from exc
+        import jieba.posseg as pseg
+    except ImportError as extra_exc:
+        raise RuntimeError("拆中文词还没装好。请先执行：pip install jieba") from extra_exc
+    apply_user_dict(keep_words or USER_WORDS)
     stops = STOPWORDS | {item.strip() for item in (extra_stop or set()) if item.strip()}
     counts: Counter[str] = Counter()
-    for token in jieba.lcut(text):
-        word = token.strip()
+    cleaned = re.sub(r"\s+", " ", text)
+    for token in pseg.cut(cleaned, HMM=True):
+        word = token.word.strip()
+        flag = token.flag or ""
         if not word or word in stops:
             continue
+        if flag in SKIP_POS:
+            continue
         if re.fullmatch(r"[\W_]+", word, flags=re.UNICODE):
+            continue
+        if re.fullmatch(r"\d+", word):
             continue
         if len(word) == 1 and not re.search(r"[A-Za-z0-9]", word):
             continue
@@ -170,17 +205,18 @@ def looks_like_word_list(text: str) -> bool:
         return False
     if any(mark in text for mark in ("。", "！", "？", "；")) and len(text) > 40:
         return False
-    scored = 0
+    scored = 0.0
     for line in lines:
         if re.search(r"[,，\s\t:：]\s*\d+(\.\d+)?\s*$", line):
             scored += 1
-        elif len(line) <= 12 and " " not in line.strip()[:1]:
+        elif len(line) <= 12:
             scored += 0.6
     return scored >= max(1.5, len(lines) * 0.5)
 
 
 def frequencies_from_payload(payload: dict[str, Any]) -> dict[str, float]:
     extra = extra_stopwords(payload)
+    keep = keep_word_list(payload)
     if payload.get("rows"):
         freq = rows_to_freq(payload.get("rows"))
     elif isinstance(payload.get("words"), dict) and payload.get("words"):
@@ -192,7 +228,7 @@ def frequencies_from_payload(payload: dict[str, Any]) -> dict[str, float]:
         mode = str(payload.get("mode") or "auto")
         if mode == "auto":
             mode = "words" if looks_like_word_list(text) else "article"
-        freq = cut_article(text, extra) if mode == "article" else parse_word_lines(text)
+        freq = cut_article(text, extra, keep) if mode == "article" else parse_word_lines(text)
     freq = {word: weight for word, weight in freq.items() if word not in extra}
     if not freq:
         raise ValueError("没有找出可用的词。可以多贴一点文字，或一行一个词")
@@ -201,11 +237,18 @@ def frequencies_from_payload(payload: dict[str, Any]) -> dict[str, float]:
 
 def analyze(payload: dict[str, Any]) -> dict[str, Any]:
     data = dict(payload)
+    text = str(data.get("text") or "").strip()
     if not data.get("rows") and not data.get("words"):
-        data["mode"] = data.get("mode") or "article"
+        if not data.get("mode") or data.get("mode") == "auto":
+            data["mode"] = "words" if looks_like_word_list(text) else "article"
     freq = frequencies_from_payload(data)
     rows = freq_to_rows(freq)
-    return {"rows": rows, "total": len(rows), "sum": round(sum(freq.values()), 2)}
+    return {
+        "rows": rows,
+        "total": len(rows),
+        "sum": round(sum(item["count"] for item in rows), 2),
+        "mode": data.get("mode") or "article",
+    }
 
 
 def make_mask(shape: str, size: int = 1400) -> np.ndarray | None:

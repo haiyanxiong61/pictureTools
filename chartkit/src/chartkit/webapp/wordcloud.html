@@ -4,19 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>做词云</title>
-  <link rel="stylesheet" href="/static/style.css?v=16" />
+  <link rel="stylesheet" href="/static/style.css?v=17" />
 </head>
 <body>
   <header class="top">
     <div>
       <h1>做词云</h1>
-      <p>粘贴文字，点看效果，再保存图片</p>
+      <p>贴文字、拆词、看图、保存</p>
       <nav class="switch">
         <a href="/">做图表</a>
         <a class="active" href="/wordcloud">做词云</a>
       </nav>
     </div>
     <div class="top-actions">
+      <button id="btn-cut" class="ghost">拆词</button>
       <button id="btn-render" class="primary">看效果</button>
       <label class="preset-wrap">
         背景
@@ -30,9 +31,9 @@
   </header>
 
   <ol class="steps">
-    <li>左边换成你的词或文章</li>
-    <li>点「看效果」</li>
-    <li>满意了就「保存图片」，自己选文件夹</li>
+    <li>左边贴上词或文章</li>
+    <li>点「拆词」看结果，不要的词点一下就能去掉</li>
+    <li>点「看效果」，满意了再「保存图片」</li>
   </ol>
 
   <main class="layout">
@@ -48,11 +49,26 @@
       <div class="block">
         <div class="block-head">
           <h2>把词或文章贴在这里</h2>
-          <button type="button" id="btn-sample" class="mini">用示例</button>
+          <div>
+            <button type="button" id="btn-sample" class="mini">用词表示例</button>
+            <button type="button" id="btn-sample-text" class="mini">用文章示例</button>
+          </div>
         </div>
-        <textarea id="text" rows="16" placeholder="可以一行一个词，例如：&#10;小米 36&#10;汽车 32&#10;&#10;也可以直接贴一整段文章。"></textarea>
+        <textarea id="text" rows="12" placeholder="可以一行一个词，例如：&#10;小米 36&#10;汽车 32&#10;&#10;也可以直接贴一整段文章，再点拆词。"></textarea>
       </div>
-      <p class="hint">一行一个词时，后面加数字会更大，例如：小米 36。贴文章会自动拆成词。</p>
+      <div class="block">
+        <label>这些词不要拆开（用逗号隔开）
+          <input id="keep-words" placeholder="例如：小米汽车，SU7" />
+        </label>
+      </div>
+      <div class="block">
+        <div class="block-head">
+          <h2>拆出来的词</h2>
+          <span id="word-count" class="note"></span>
+        </div>
+        <div id="word-chips" class="word-chips">点「拆词」后，词会出现在这里。点一下就能去掉。</div>
+      </div>
+      <p class="hint">贴文章会自动拆成词。想让某个词更大，可写成：小米 36。保存后的图会进下面图库，可打包下载。</p>
     </section>
 
     <section class="preview">
@@ -67,6 +83,18 @@
     </section>
   </main>
 
-  <script src="/static/wordcloud.js?v=16"></script>
+  <section class="gallery-wrap">
+    <div class="block-head">
+      <h2>词云图库</h2>
+      <div class="gallery-actions">
+        <button type="button" id="btn-zip" class="primary">打包下载全部</button>
+        <button type="button" id="btn-open-gallery" class="mini">打开文件夹</button>
+      </div>
+    </div>
+    <p class="hint">保存过的图会留在这里，可单张再下载，或一次打包成 zip。</p>
+    <div id="gallery" class="gallery"></div>
+  </section>
+
+  <script src="/static/wordcloud.js?v=17"></script>
 </body>
 </html>
