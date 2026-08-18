@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>做词云</title>
-  <link rel="stylesheet" href="/static/style.css?v=13" />
+  <link rel="stylesheet" href="/static/style.css?v=14" />
 </head>
 <body>
   <header class="top">
@@ -39,14 +39,14 @@
           <option value="jpg">JPG 图片</option>
         </select>
       </label>
-      <button id="btn-download" class="ghost" disabled>③ 保存图片</button>
+      <button id="btn-download" class="primary" disabled>③ 导出这张图</button>
     </div>
   </header>
 
   <ol class="steps">
     <li>左边用现成例子，或换成你自己的词</li>
     <li>选外形和颜色</li>
-    <li>右边看图，满意了就保存，自己选文件夹</li>
+    <li>右边看图，点「导出这张图」保存；下面图库里也能单张或打包下载</li>
   </ol>
 
   <main class="layout">
@@ -74,7 +74,7 @@
         </div>
         <textarea id="text" rows="16" placeholder="小米 36&#10;汽车 32&#10;造车 28"></textarea>
       </div>
-      <p class="hint">一行一个词。想让某个词更大，在后面加数字，例如：小米 36。点「换一换」可以换排布，位置会变，词不变。</p>
+      <p class="hint">一行一个词。想让某个词更大，在后面加数字，例如：小米 36。点「换一换」可以换排布。做好的图会进下面的图库，可以随时下载。</p>
     </section>
 
     <section class="preview">
@@ -89,6 +89,18 @@
     </section>
   </main>
 
-  <script src="/static/wordcloud.js?v=13"></script>
+  <section class="gallery-wrap">
+    <div class="block-head">
+      <h2>做好的词云图库</h2>
+      <div class="gallery-actions">
+        <button type="button" id="btn-zip" class="primary">打包下载全部</button>
+        <button type="button" id="btn-open-gallery" class="mini">打开图库文件夹</button>
+      </div>
+    </div>
+    <p class="hint">每做成功一张，都会放进图库。可以单张导出，也可以一次打包成 zip 下载。</p>
+    <div id="gallery" class="gallery"></div>
+  </section>
+
+  <script src="/static/wordcloud.js?v=14"></script>
 </body>
 </html>

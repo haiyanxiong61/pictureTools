@@ -239,6 +239,46 @@ td.row-name input { min-width: 96px; font-weight: 600; }
 }
 .canvas img { max-width: 100%; max-height: 74vh; display: block; }
 .empty { color: var(--muted); font-size: 14px; }
+.gallery-wrap {
+  margin: 0 28px 28px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.gallery-wrap .block-head { margin-bottom: 8px; }
+.gallery-wrap h2 { font-size: 15px; color: var(--ink); }
+.gallery-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.gallery-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gallery-card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+}
+.gallery-name {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 @media (max-width: 960px) {
   .layout { grid-template-columns: 1fr; }

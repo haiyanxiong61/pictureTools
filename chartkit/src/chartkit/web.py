@@ -10,6 +10,8 @@ import subprocess
 import sys
 import threading
 import webbrowser
+import zipfile
+from datetime import datetime
 from pathlib import Path
 
 import matplotlib
@@ -116,6 +118,7 @@ def choose_save_path(filename: str) -> Path | None:
         filetypes=[
             ("PNG 图片", "*.png"),
             ("JPG 图片", "*.jpg"),
+            ("ZIP 压缩包", "*.zip"),
             ("所有文件", "*.*"),
         ],
     )
@@ -129,13 +132,65 @@ def write_bytes(image: bytes, filename: str, fmt: str) -> dict:
     dest = choose_save_path(filename)
     if dest is None:
         return {"cancelled": True}
-    if dest.suffix.lower() not in {".png", ".jpg", ".jpeg", ".svg", ".pdf"}:
+    if dest.suffix.lower() not in {".png", ".jpg", ".jpeg", ".svg", ".pdf", ".zip"}:
         dest = dest.with_suffix(f".{fmt}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(image)
     remember_dir(dest)
     reveal_file(dest)
     return {"path": str(dest), "folder": str(dest.parent), "name": dest.name}
+
+
+def gallery_dir() -> Path:
+    pictures = Path.home() / "Pictures"
+    base = pictures if pictures.is_dir() else default_save_dir()
+    folder = base / "pictureTools" / "词云图库"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def gallery_file(name: str) -> Path:
+    path = (gallery_dir() / Path(name).name).resolve()
+    if path.parent != gallery_dir().resolve() or not path.is_file():
+        raise FileNotFoundError("图库里没有这张图")
+    return path
+
+
+def list_gallery() -> list[dict]:
+    items = []
+    folder = gallery_dir()
+    files = [p for p in folder.iterdir() if p.suffix.lower() in {".png", ".jpg", ".jpeg"}]
+    files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    for path in files[:40]:
+        items.append({"id": path.name, "name": path.name, "url": f"/api/wordcloud/gallery/{path.name}"})
+    return items
+
+
+def add_to_gallery(image: bytes, fmt: str, label: str, shape: str) -> dict:
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = safe_filename(f"{stamp}_{label}_{shape}", fmt)
+    path = unique_path(gallery_dir(), filename)
+    path.write_bytes(image)
+    extras = sorted(gallery_dir().glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for old in extras[40:]:
+        if old.suffix.lower() in {".png", ".jpg", ".jpeg"}:
+            try:
+                old.unlink()
+            except OSError:
+                pass
+    return {"id": path.name, "name": path.name, "url": f"/api/wordcloud/gallery/{path.name}"}
+
+
+def gallery_zip_bytes() -> bytes:
+    items = list_gallery()
+    if not items:
+        raise ValueError("图库还是空的，请先点「看效果」做出词云")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for item in items:
+            path = gallery_file(item["id"])
+            zf.write(path, arcname=path.name)
+    return buf.getvalue()
 
 
 def write_chart(payload: dict) -> dict:
@@ -207,6 +262,7 @@ def create_app() -> Flask:
         payload = request.get_json(silent=True) or {}
         try:
             image, fmt, label = render_wordcloud(payload)
+            add_to_gallery(image, fmt, label, str(payload.get("shape") or "ring"))
         except Exception as exc:
             return jsonify({"error": str(exc)}), 400
         return send_file(io.BytesIO(image), mimetype=MIME[fmt], download_name=f"wordcloud_{label}.{fmt}")
@@ -215,7 +271,68 @@ def create_app() -> Flask:
     def wordcloud_save():
         payload = request.get_json(silent=True) or {}
         try:
-            result = write_wordcloud(payload)
+            if payload.get("data"):
+                import base64
+
+                raw = base64.b64decode(str(payload["data"]).split(",")[-1])
+                title = str(payload.get("filename") or "我的词云")
+                fmt = str(payload.get("format") or "png").lower()
+                result = write_bytes(raw, safe_filename(title, fmt), fmt)
+            else:
+                result = write_wordcloud(payload)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(result)
+
+    @app.get("/api/wordcloud/gallery")
+    def wordcloud_gallery():
+        return jsonify({"items": list_gallery(), "folder": str(gallery_dir())})
+
+    @app.get("/api/wordcloud/gallery/zip")
+    def wordcloud_gallery_zip():
+        try:
+            data = gallery_zip_bytes()
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+        return send_file(
+            io.BytesIO(data),
+            mimetype="application/zip",
+            download_name="词云图库.zip",
+            as_attachment=True,
+        )
+
+    @app.post("/api/wordcloud/gallery/zip-save")
+    def wordcloud_gallery_zip_save():
+        try:
+            data = gallery_zip_bytes()
+            result = write_bytes(data, "词云图库.zip", "zip")
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(result)
+
+    @app.post("/api/wordcloud/gallery/open")
+    def wordcloud_gallery_open():
+        folder = gallery_dir()
+        reveal_file(folder)
+        return jsonify({"folder": str(folder)})
+
+    @app.get("/api/wordcloud/gallery/<name>")
+    def wordcloud_gallery_item(name: str):
+        try:
+            path = gallery_file(name)
+        except FileNotFoundError as exc:
+            return jsonify({"error": str(exc)}), 404
+        fmt = path.suffix.lower().lstrip(".")
+        if fmt == "jpeg":
+            fmt = "jpg"
+        return send_file(path, mimetype=MIME.get(fmt, "image/png"), download_name=path.name, as_attachment="download" in request.args)
+
+    @app.post("/api/wordcloud/gallery/<name>/save")
+    def wordcloud_gallery_item_save(name: str):
+        try:
+            path = gallery_file(name)
+            fmt = path.suffix.lower().lstrip(".") or "png"
+            result = write_bytes(path.read_bytes(), path.name, fmt)
         except Exception as exc:
             return jsonify({"error": str(exc)}), 400
         return jsonify(result)
