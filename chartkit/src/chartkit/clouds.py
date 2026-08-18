@@ -164,6 +164,21 @@ def extra_stopwords(payload: dict[str, Any]) -> set[str]:
     return {part.strip() for part in str(payload.get("stopwords") or "").replace("，", ",").split(",") if part.strip()}
 
 
+def looks_like_word_list(text: str) -> bool:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return False
+    if any(mark in text for mark in ("。", "！", "？", "；")) and len(text) > 40:
+        return False
+    scored = 0
+    for line in lines:
+        if re.search(r"[,，\s\t:：]\s*\d+(\.\d+)?\s*$", line):
+            scored += 1
+        elif len(line) <= 12 and " " not in line.strip()[:1]:
+            scored += 0.6
+    return scored >= max(1.5, len(lines) * 0.5)
+
+
 def frequencies_from_payload(payload: dict[str, Any]) -> dict[str, float]:
     extra = extra_stopwords(payload)
     if payload.get("rows"):
@@ -173,12 +188,14 @@ def frequencies_from_payload(payload: dict[str, Any]) -> dict[str, float]:
     else:
         text = str(payload.get("text") or "").strip()
         if not text:
-            raise ValueError("请先填词，或粘贴一段文字后点「拆成词表」")
-        mode = str(payload.get("mode") or "words")
+            raise ValueError("请先把词或文章粘贴到左边")
+        mode = str(payload.get("mode") or "auto")
+        if mode == "auto":
+            mode = "words" if looks_like_word_list(text) else "article"
         freq = cut_article(text, extra) if mode == "article" else parse_word_lines(text)
     freq = {word: weight for word, weight in freq.items() if word not in extra}
     if not freq:
-        raise ValueError("没有找出可用的词。可以换一段更长的文字，或在词表里加词")
+        raise ValueError("没有找出可用的词。可以多贴一点文字，或一行一个词")
     return freq
 
 
@@ -283,24 +300,12 @@ def meta() -> dict[str, Any]:
     return {
         "palettes": [
             {"id": "colorful", "name": "彩色"},
-            {"id": "bluegreen", "name": "蓝绿"},
-            {"id": "pastel", "name": "柔和"},
-            {"id": "academic", "name": "学术灰绿"},
-            {"id": "business", "name": "商务蓝"},
+            {"id": "academic", "name": "灰绿"},
         ],
         "shapes": [
             {"id": "ring", "name": "环形"},
             {"id": "circle", "name": "圆形"},
-            {"id": "oval", "name": "椭圆"},
-            {"id": "square", "name": "方形"},
-            {"id": "heart", "name": "心形"},
-        ],
-        "layouts": [
-            {"id": "0.95", "name": "几乎都横着"},
-            {"id": "0.65", "name": "有横有竖"},
-            {"id": "0.35", "name": "多一些竖着"},
         ],
         "sample_words": SAMPLE_WORDS.strip(),
         "sample_text": SAMPLE_TEXT.strip(),
-        "sample_rows": freq_to_rows(parse_word_lines(SAMPLE_WORDS)),
     }
