@@ -13,7 +13,7 @@ if webapp.exists():
 binaries = []
 hiddenimports = []
 
-for package in ("matplotlib", "flask", "yaml", "numpy"):
+for package in ("matplotlib", "flask", "yaml", "numpy", "wordcloud", "jieba", "PIL"):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas
     binaries += pkg_binaries
@@ -32,6 +32,7 @@ hiddenimports += [
     "chartkit.themes",
     "chartkit.spec",
     "chartkit.demo",
+    "chartkit.clouds",
     "webview",
     "tkinter",
 ]

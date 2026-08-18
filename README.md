@@ -1,6 +1,6 @@
 # pictureTools
 
-在网页里选例子、改数字、下载图表。也可以打成 Windows 软件，对方不用安装 Python。
+在网页里选例子、改数字、保存图片。也可以做词云。也可以打成 Windows 软件，对方不用安装 Python。
 
 ## 这台 Mac 上怎么用
 

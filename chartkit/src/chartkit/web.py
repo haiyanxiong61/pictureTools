@@ -125,10 +125,7 @@ def choose_save_path(filename: str) -> Path | None:
     return Path(selected)
 
 
-def write_chart(payload: dict) -> dict:
-    title = str(payload.pop("filename", "") or payload.get("title") or "我的图表")
-    image, fmt, label = render_image(payload)
-    filename = safe_filename(f"{title}_{label}", fmt)
+def write_bytes(image: bytes, filename: str, fmt: str) -> dict:
     dest = choose_save_path(filename)
     if dest is None:
         return {"cancelled": True}
@@ -139,6 +136,20 @@ def write_chart(payload: dict) -> dict:
     remember_dir(dest)
     reveal_file(dest)
     return {"path": str(dest), "folder": str(dest.parent), "name": dest.name}
+
+
+def write_chart(payload: dict) -> dict:
+    title = str(payload.pop("filename", "") or payload.get("title") or "我的图表")
+    image, fmt, label = render_image(payload)
+    return write_bytes(image, safe_filename(f"{title}_{label}", fmt), fmt)
+
+
+def write_wordcloud(payload: dict) -> dict:
+    from .clouds import render_wordcloud
+
+    title = str(payload.get("filename") or payload.get("title") or "我的词云")
+    image, fmt, label = render_wordcloud(payload)
+    return write_bytes(image, safe_filename(f"{title}_{label}", fmt), fmt)
 
 
 def reveal_file(path: Path) -> None:
@@ -178,6 +189,36 @@ def create_app() -> Flask:
     @app.get("/")
     def index():
         return send_from_directory(WEBAPP, "index.html")
+
+    @app.get("/wordcloud")
+    def wordcloud_page():
+        return send_from_directory(WEBAPP, "wordcloud.html")
+
+    @app.get("/api/wordcloud/meta")
+    def wordcloud_meta():
+        from .clouds import meta as cloud_meta
+
+        return jsonify(cloud_meta())
+
+    @app.post("/api/wordcloud/render")
+    def wordcloud_render():
+        from .clouds import render_wordcloud
+
+        payload = request.get_json(silent=True) or {}
+        try:
+            image, fmt, label = render_wordcloud(payload)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+        return send_file(io.BytesIO(image), mimetype=MIME[fmt], download_name=f"wordcloud_{label}.{fmt}")
+
+    @app.post("/api/wordcloud/save")
+    def wordcloud_save():
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = write_wordcloud(payload)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(result)
 
     @app.get("/api/meta")
     def meta():

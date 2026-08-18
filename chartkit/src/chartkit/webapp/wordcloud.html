@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>做词云</title>
+  <link rel="stylesheet" href="/static/style.css?v=13" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>做词云</h1>
+      <p>粘贴文字或填词，生成彩色词云图</p>
+      <nav class="switch">
+        <a href="/">做图表</a>
+        <a class="active" href="/wordcloud">做词云</a>
+      </nav>
+    </div>
+    <div class="top-actions">
+      <label class="preset-wrap">
+        ① 怎么填
+        <select id="mode">
+          <option value="words">一行一个词（可写次数）</option>
+          <option value="article">粘贴一整段文章，自动拆词</option>
+        </select>
+      </label>
+      <button id="btn-render" class="primary">② 看效果</button>
+      <label class="preset-wrap">
+        背景
+        <select id="export-bg">
+          <option value="white">白底</option>
+          <option value="transparent">透明底（可叠在 PPT 上）</option>
+        </select>
+      </label>
+      <label class="preset-wrap">
+        图片格式
+        <select id="export-fmt">
+          <option value="png">PNG 图片</option>
+          <option value="jpg">JPG 图片</option>
+        </select>
+      </label>
+      <button id="btn-download" class="ghost" disabled>③ 保存图片</button>
+    </div>
+  </header>
+
+  <ol class="steps">
+    <li>左边用现成例子，或换成你自己的词</li>
+    <li>选外形和颜色</li>
+    <li>右边看图，满意了就保存，自己选文件夹</li>
+  </ol>
+
+  <main class="layout">
+    <section class="panel">
+      <div class="block">
+        <h2>外形</h2>
+        <div id="shapes" class="chips"></div>
+      </div>
+      <div class="block">
+        <h2>颜色</h2>
+        <div id="palettes" class="chips"></div>
+      </div>
+      <div class="block fields">
+        <label>最多显示多少个词
+          <input id="max-words" type="number" min="10" max="300" value="80" />
+        </label>
+        <label>不要这些词（用逗号隔开）
+          <input id="stopwords" placeholder="比如：的，了，是" />
+        </label>
+      </div>
+      <div class="block">
+        <div class="block-head">
+          <h2 id="text-title">填词（越大的数字，字越大）</h2>
+          <button type="button" id="btn-sample" class="mini">用示例</button>
+        </div>
+        <textarea id="text" rows="16" placeholder="小米 36&#10;汽车 32&#10;造车 28"></textarea>
+      </div>
+      <p class="hint">一行一个词。想让某个词更大，在后面加数字，例如：小米 36。点「换一换」可以换排布，位置会变，词不变。</p>
+    </section>
+
+    <section class="preview">
+      <div class="preview-head">
+        <div id="status" class="status">正在准备…</div>
+        <button type="button" id="btn-shuffle" class="mini">换一换排布</button>
+      </div>
+      <div class="canvas">
+        <img id="chart" alt="词云预览" hidden />
+        <div id="empty" class="empty">点「看效果」后，词云会出现在这里</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/wordcloud.js?v=13"></script>
+</body>
+</html>

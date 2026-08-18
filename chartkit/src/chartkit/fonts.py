@@ -68,3 +68,15 @@ def apply_chinese_font(family: str | None = None) -> str:
     mpl.rcParams["font.family"] = [resolved, "DejaVu Sans", "sans-serif"]
     mpl.rcParams["axes.unicode_minus"] = False
     return resolved
+
+
+@lru_cache(maxsize=1)
+def find_chinese_font_path() -> str:
+    for path in FONT_FILES:
+        if path.exists():
+            return str(path)
+    name = find_chinese_font()
+    for item in font_manager.fontManager.ttflist:
+        if item.name == name and Path(item.fname).exists():
+            return item.fname
+    return font_manager.findfont(name)
