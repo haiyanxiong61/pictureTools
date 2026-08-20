@@ -455,4 +455,4 @@ def serve(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) 
     print(f"chartkit 网页已启动：{url}")
     if open_browser:
         threading.Timer(0.7, lambda: webbrowser.open(url)).start()
-    app.run(host=host, port=port, debug=False, use_reloader=False)
+    app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)

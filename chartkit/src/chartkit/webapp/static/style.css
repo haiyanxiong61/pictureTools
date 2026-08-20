@@ -155,6 +155,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--line);
   background: var(--chip);
   border-radius: 999px;
@@ -166,6 +169,20 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   background: var(--sage);
   border-color: var(--sage);
   color: #fff;
+}
+.chip-dots {
+  display: inline-flex;
+  gap: 2px;
+}
+.chip-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.chip.active .chip-dots i {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
 .fields {
@@ -238,6 +255,16 @@ td.row-name input { min-width: 96px; font-weight: 600; }
   padding: 12px;
 }
 .canvas img { max-width: 100%; max-height: 74vh; display: block; }
+.canvas.checkered {
+  background-color: #f4f1ea;
+  background-image:
+    linear-gradient(45deg, #e6e1d4 25%, transparent 25%),
+    linear-gradient(-45deg, #e6e1d4 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e6e1d4 75%),
+    linear-gradient(-45deg, transparent 75%, #e6e1d4 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+}
 .empty { color: var(--muted); font-size: 14px; }
 .gallery-wrap {
   margin: 0 28px 28px;

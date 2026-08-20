@@ -4,26 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>做词云</title>
-  <link rel="stylesheet" href="/static/style.css?v=17" />
+  <link rel="stylesheet" href="/static/style.css?v=19" />
 </head>
 <body>
   <header class="top">
     <div>
       <h1>做词云</h1>
-      <p>贴文字、拆词、看图、保存</p>
+      <p>把文章复制进来，会自动拆词并出图</p>
       <nav class="switch">
         <a href="/">做图表</a>
         <a class="active" href="/wordcloud">做词云</a>
       </nav>
     </div>
     <div class="top-actions">
-      <button id="btn-cut" class="ghost">拆词</button>
       <button id="btn-render" class="primary">看效果</button>
       <label class="preset-wrap">
         背景
         <select id="export-bg">
           <option value="white">白底</option>
-          <option value="transparent">透明底</option>
+          <option value="transparent">透明底（可叠在 PPT 上）</option>
         </select>
       </label>
       <button id="btn-download" class="ghost" disabled>保存图片</button>
@@ -31,9 +30,9 @@
   </header>
 
   <ol class="steps">
-    <li>左边贴上词或文章</li>
-    <li>点「拆词」看结果，不要的词点一下就能去掉</li>
-    <li>点「看效果」，满意了再「保存图片」</li>
+    <li>选外形和颜色</li>
+    <li>把文章复制到左边，会自动拆词并出图</li>
+    <li>选白底或透明底，不要的词点一下去掉，满意了再保存图片</li>
   </ol>
 
   <main class="layout">
@@ -48,13 +47,13 @@
       </div>
       <div class="block">
         <div class="block-head">
-          <h2>把词或文章贴在这里</h2>
+          <h2>把文章复制到这里</h2>
           <div>
-            <button type="button" id="btn-sample" class="mini">用词表示例</button>
             <button type="button" id="btn-sample-text" class="mini">用文章示例</button>
+            <button type="button" id="btn-sample" class="mini">用词表示例</button>
           </div>
         </div>
-        <textarea id="text" rows="12" placeholder="可以一行一个词，例如：&#10;小米 36&#10;汽车 32&#10;&#10;也可以直接贴一整段文章，再点拆词。"></textarea>
+        <textarea id="text" rows="12" placeholder="把整段文章直接粘贴进来，会自动拆成词。&#10;&#10;如果已经有词表，也可以一行一个：&#10;小米 36&#10;汽车 32"></textarea>
       </div>
       <div class="block">
         <label>这些词不要拆开（用逗号隔开）
@@ -66,9 +65,9 @@
           <h2>拆出来的词</h2>
           <span id="word-count" class="note"></span>
         </div>
-        <div id="word-chips" class="word-chips">点「拆词」后，词会出现在这里。点一下就能去掉。</div>
+        <div id="word-chips" class="word-chips">复制文章进来后，会自动拆词。不要的词点一下就能去掉。</div>
       </div>
-      <p class="hint">贴文章会自动拆成词。想让某个词更大，可写成：小米 36。保存后的图会进下面图库，可打包下载。</p>
+      <p class="hint">直接粘贴文章即可。外形、颜色、白底/透明底都可以选，保存后的图会进下面图库。</p>
     </section>
 
     <section class="preview">
@@ -76,7 +75,7 @@
         <div id="status" class="status">正在准备…</div>
         <button type="button" id="btn-shuffle" class="mini">换一换</button>
       </div>
-      <div class="canvas">
+      <div class="canvas checkered">
         <img id="chart" alt="词云预览" hidden />
         <div id="empty" class="empty">点「看效果」后，图会出现在这里</div>
       </div>
@@ -95,6 +94,6 @@
     <div id="gallery" class="gallery"></div>
   </section>
 
-  <script src="/static/wordcloud.js?v=17"></script>
+  <script src="/static/wordcloud.js?v=19"></script>
 </body>
 </html>

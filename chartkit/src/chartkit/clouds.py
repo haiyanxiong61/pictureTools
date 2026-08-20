@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import math
 import random
 import re
 from collections import Counter
@@ -37,10 +38,36 @@ USER_WORDS = [
 PALETTES = {
     "colorful": ["#1f4e79", "#2e75b6", "#5b9bd5", "#548235", "#70ad47", "#c6a000", "#ffc000", "#7b4b94", "#5b2c6f", "#ed7d31"],
     "bluegreen": ["#1f4e79", "#2e75b6", "#5b9bd5", "#385723", "#548235", "#70ad47", "#a9d08e"],
-    "academic": ["#222222", "#4d4d4d", "#6e6e6e", "#8a8a8a", "#3f6b46", "#5a7d5c"],
+    "ocean": ["#0b3d5c", "#1a6b9a", "#2e86ab", "#48a9a6", "#7dd3c7", "#1565c0"],
+    "sunset": ["#6d1a36", "#c0392b", "#e67e22", "#f39c12", "#f7dc6f", "#8e3b1f"],
     "business": ["#1f4e79", "#2e75b6", "#5b9bd5", "#c00000", "#833c0c"],
+    "academic": ["#222222", "#4d4d4d", "#6e6e6e", "#8a8a8a", "#3f6b46", "#5a7d5c"],
     "pastel": ["#8da0cb", "#fc8d62", "#66c2a5", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494"],
+    "ink": ["#111111", "#333333", "#555555", "#1f4e79", "#2e75b6"],
 }
+
+SHAPES = [
+    {"id": "circle", "name": "圆形"},
+    {"id": "oval", "name": "椭圆"},
+    {"id": "ring", "name": "环形"},
+    {"id": "heart", "name": "心形"},
+    {"id": "square", "name": "方形"},
+    {"id": "rect", "name": "矩形"},
+    {"id": "diamond", "name": "菱形"},
+    {"id": "star", "name": "星形"},
+    {"id": "cloud", "name": "云朵"},
+]
+
+PALETTE_META = [
+    {"id": "colorful", "name": "彩色"},
+    {"id": "bluegreen", "name": "蓝绿"},
+    {"id": "ocean", "name": "海蓝"},
+    {"id": "sunset", "name": "暖色"},
+    {"id": "business", "name": "商务"},
+    {"id": "academic", "name": "灰绿"},
+    {"id": "pastel", "name": "柔和"},
+    {"id": "ink", "name": "墨色"},
+]
 
 SAMPLE_WORDS = """小米 36
 汽车 32
@@ -203,15 +230,10 @@ def looks_like_word_list(text: str) -> bool:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return False
-    if any(mark in text for mark in ("。", "！", "？", "；")) and len(text) > 40:
+    if len(text) >= 60 and any(mark in text for mark in ("。", "！", "？", "；", "，")):
         return False
-    scored = 0.0
-    for line in lines:
-        if re.search(r"[,，\s\t:：]\s*\d+(\.\d+)?\s*$", line):
-            scored += 1
-        elif len(line) <= 12:
-            scored += 0.6
-    return scored >= max(1.5, len(lines) * 0.5)
+    numbered = sum(1 for line in lines if re.search(r"[,，\s\t:：]\s*\d+(\.\d+)?\s*$", line))
+    return numbered >= max(3, len(lines) * 0.7)
 
 
 def frequencies_from_payload(payload: dict[str, Any]) -> dict[str, float]:
@@ -252,30 +274,54 @@ def analyze(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def make_mask(shape: str, size: int = 1400) -> np.ndarray | None:
-    if shape in {"square", "rect", ""}:
+    from PIL import Image, ImageDraw
+
+    name = (shape or "").strip().lower()
+    if name in {"square", "rect", ""}:
         return None
-    yy, xx = np.ogrid[:size, :size]
-    center = (size - 1) / 2.0
-    mask = np.full((size, size), 255, dtype=np.uint8)
-    if shape == "oval":
-        rx, ry = size * 0.46, size * 0.34
-        oval = ((xx - center) / rx) ** 2 + ((yy - center) / ry) ** 2
-        mask[oval <= 1] = 0
-        return mask
-    if shape == "heart":
+
+    if name == "heart":
+        yy, xx = np.ogrid[:size, :size]
+        center = (size - 1) / 2.0
+        mask = np.full((size, size), 255, dtype=np.uint8)
         x = (xx - center) / (size * 0.38)
         y = (center - yy) / (size * 0.38) - 0.18
         heart = (x * x + y * y - 1) ** 3 - (x * x) * (y ** 3)
         mask[heart <= 0] = 0
         return mask
-    radius = size * 0.48
-    dist = (xx - center) ** 2 + (yy - center) ** 2
-    if shape == "ring":
-        inner = radius * 0.32
-        mask[(dist <= radius ** 2) & (dist >= inner ** 2)] = 0
+
+    img = Image.new("L", (size, size), 255)
+    draw = ImageDraw.Draw(img)
+    cx = cy = size / 2.0
+    pad = size * 0.05
+
+    if name == "oval":
+        rx, ry = size * 0.46, size * 0.34
+        draw.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=0)
+    elif name == "ring":
+        outer, inner = size * 0.48, size * 0.18
+        draw.ellipse([cx - outer, cy - outer, cx + outer, cy + outer], fill=0)
+        draw.ellipse([cx - inner, cy - inner, cx + inner, cy + inner], fill=255)
+    elif name == "diamond":
+        draw.polygon([(cx, pad), (size - pad, cy), (cx, size - pad), (pad, cy)], fill=0)
+    elif name == "star":
+        pts = []
+        outer, inner = size * 0.46, size * 0.20
+        for i in range(10):
+            radius = outer if i % 2 == 0 else inner
+            ang = -math.pi / 2 + i * math.pi / 5
+            pts.append((cx + radius * math.cos(ang), cy + radius * math.sin(ang)))
+        draw.polygon(pts, fill=0)
+    elif name == "cloud":
+        s = float(size)
+        draw.ellipse([s * 0.14, s * 0.46, s * 0.86, s * 0.88], fill=0)
+        draw.ellipse([s * 0.10, s * 0.38, s * 0.42, s * 0.72], fill=0)
+        draw.ellipse([s * 0.28, s * 0.22, s * 0.62, s * 0.62], fill=0)
+        draw.ellipse([s * 0.50, s * 0.26, s * 0.82, s * 0.64], fill=0)
+        draw.ellipse([s * 0.68, s * 0.40, s * 0.92, s * 0.76], fill=0)
     else:
-        mask[dist <= radius ** 2] = 0
-    return mask
+        draw.ellipse([pad, pad, size - pad, size - pad], fill=0)
+    return np.array(img)
 
 
 def color_func(palette: list[str], rng: random.Random):
@@ -293,7 +339,7 @@ def render_wordcloud(payload: dict[str, Any]) -> tuple[bytes, str, str]:
     bg = str(payload.get("background_mode") or "white").lower()
     if bg == "transparent" and fmt == "jpg":
         fmt = "png"
-    shape = str(payload.get("shape") or "ring")
+    shape = str(payload.get("shape") or "circle")
     palette_name = str(payload.get("palette") or "colorful")
     palette = list(PALETTES.get(palette_name, PALETTES["colorful"]))
     max_words = int(payload.get("max_words") or 80)
@@ -303,8 +349,15 @@ def render_wordcloud(payload: dict[str, Any]) -> tuple[bytes, str, str]:
     prefer = float(payload.get("prefer_horizontal") or 0.65)
     freq = frequencies_from_payload(payload)
     font_path = find_chinese_font_path()
-    mask = make_mask(shape, size=size)
-    width, height = (size, size) if mask is not None else (int(size * 1.2), int(size * 0.78))
+    if shape == "rect":
+        width, height = int(size * 1.55), int(size * 0.72)
+        mask = None
+    elif shape == "square":
+        width, height = size, size
+        mask = None
+    else:
+        mask = make_mask(shape, size=size)
+        width, height = size, size
     rng = random.Random(seed)
     background = None if bg == "transparent" else "#ffffff"
     cloud = WordCloud(
@@ -340,15 +393,13 @@ def render_wordcloud(payload: dict[str, Any]) -> tuple[bytes, str, str]:
 
 
 def meta() -> dict[str, Any]:
+    palettes = []
+    for item in PALETTE_META:
+        colors = PALETTES.get(item["id"], PALETTES["colorful"])
+        palettes.append({**item, "colors": colors[:5]})
     return {
-        "palettes": [
-            {"id": "colorful", "name": "彩色"},
-            {"id": "academic", "name": "灰绿"},
-        ],
-        "shapes": [
-            {"id": "ring", "name": "环形"},
-            {"id": "circle", "name": "圆形"},
-        ],
+        "palettes": palettes,
+        "shapes": SHAPES,
         "sample_words": SAMPLE_WORDS.strip(),
         "sample_text": SAMPLE_TEXT.strip(),
     }

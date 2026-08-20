@@ -36,9 +36,10 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if not args.cmd:
-        parser.print_help()
-        print("\n示例: python -m chartkit demo -o output")
-        return 0
+        args.cmd = "serve"
+        args.host = "127.0.0.1"
+        args.port = 8765
+        args.no_browser = False
 
     if args.cmd == "types":
         print("\n".join(available_types()))

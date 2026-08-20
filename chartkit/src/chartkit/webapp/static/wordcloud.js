@@ -1,7 +1,7 @@
 const $ = (id) => document.getElementById(id);
 
 let meta = { palettes: [], shapes: [], sample_words: "", sample_text: "" };
-let shape = "ring";
+let shape = "circle";
 let palette = "colorful";
 let seed = 7;
 let rows = [];
@@ -9,6 +9,8 @@ let lastUrl = "";
 let lastBlob = null;
 let generating = false;
 let textDirty = true;
+let autoTimer = 0;
+let fromPaste = false;
 
 function renderChips(containerId, items, current, onPick) {
   const box = $(containerId);
@@ -18,7 +20,17 @@ function renderChips(containerId, items, current, onPick) {
     btn.type = "button";
     btn.className = "chip" + (item.id === current ? " active" : "");
     btn.dataset.id = item.id;
-    btn.textContent = item.name;
+    if (item.colors && item.colors.length) {
+      const dots = document.createElement("span");
+      dots.className = "chip-dots";
+      item.colors.slice(0, 4).forEach((color) => {
+        const dot = document.createElement("i");
+        dot.style.background = color;
+        dots.appendChild(dot);
+      });
+      btn.appendChild(dots);
+    }
+    btn.appendChild(document.createTextNode(item.name));
     btn.addEventListener("click", () => {
       onPick(item.id);
       box.querySelectorAll(".chip").forEach((el) => {
@@ -33,7 +45,7 @@ function renderWordChips() {
   const box = $("word-chips");
   const count = $("word-count");
   if (!rows.length) {
-    box.textContent = "点「拆词」后，词会出现在这里。点一下就能去掉。";
+    box.textContent = "把文章复制进来，会自动拆词。不要的词点一下就能去掉。";
     count.textContent = "";
     return;
   }
@@ -106,7 +118,7 @@ async function cutWords() {
     rows = data.rows || [];
     textDirty = false;
     renderWordChips();
-    status.textContent = `拆出 ${rows.length} 个词。不要的词点一下去掉，再点「看效果」`;
+    status.textContent = `已自动拆出 ${rows.length} 个词。不要的词点一下去掉即可`;
   } catch (err) {
     status.classList.add("error");
     status.textContent = err.message;
@@ -322,11 +334,30 @@ async function boot() {
       palette = id;
       generate();
     });
+    $("text").addEventListener("paste", () => {
+      textDirty = true;
+      fromPaste = true;
+      clearTimeout(autoTimer);
+      setTimeout(() => generate(), 80);
+    });
     $("text").addEventListener("input", () => {
       textDirty = true;
+      if (fromPaste) {
+        fromPaste = false;
+        return;
+      }
+      clearTimeout(autoTimer);
+      autoTimer = setTimeout(() => generate(), 800);
     });
     $("keep-words").addEventListener("change", () => {
       textDirty = true;
+    });
+    $("btn-sample-text").addEventListener("click", () => {
+      $("text").value = meta.sample_text;
+      textDirty = true;
+      rows = [];
+      renderWordChips();
+      generate();
     });
     $("btn-sample").addEventListener("click", () => {
       $("text").value = meta.sample_words;
@@ -335,14 +366,6 @@ async function boot() {
       renderWordChips();
       generate();
     });
-    $("btn-sample-text").addEventListener("click", () => {
-      $("text").value = meta.sample_text;
-      textDirty = true;
-      rows = [];
-      renderWordChips();
-      cutWords();
-    });
-    $("btn-cut").addEventListener("click", cutWords);
     $("btn-render").addEventListener("click", generate);
     $("btn-download").addEventListener("click", save);
     $("btn-shuffle").addEventListener("click", () => {
@@ -355,7 +378,7 @@ async function boot() {
       $("status").textContent = `图库文件夹：${data.folder}`;
     });
     $("export-bg").addEventListener("change", generate);
-    $("text").value = meta.sample_words;
+    $("text").value = meta.sample_text;
     await refreshGallery();
     generate();
   } catch (err) {
